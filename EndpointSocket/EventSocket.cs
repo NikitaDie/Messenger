@@ -14,23 +14,26 @@ public class EventSocket : Emitter
         TcpClient = tcpClient;
         _netStream = tcpClient.GetStream();
     }
-    
-    // public override Emitter Emit(string eventString, params IPayload[] args)
-    public Emitter Emit(string eventString, IPayload arg)
+
+    public Emitter Emit(string eventString, IEnumerable<IPayload> arg)
     {
         ProtoMessage m = new ProtoMessage()
         {
             Action = eventString,
         };
-        //m.SetHeader("testHeader", "hohoho");
-        m.SetPayload(arg);
+        m.AddPayload(arg);
         
-        MemoryStream memStream = m.GetStream();
-        // Console.Write("Press to send");
-        // Console.ReadLine();
-        // Console.WriteLine(memStream.Length);
-        memStream.CopyTo(_netStream);
+        using (MemoryStream memStream = m.GetStream())
+        {
+            memStream.CopyTo(_netStream);
+        }
         
-        return (Emitter) this;
+        return this;
     }
+    
+    public Emitter Emit(string eventString, params IPayload[] args)
+    {
+        return Emit(eventString, new List<IPayload>(args));
+    }
+    
 }

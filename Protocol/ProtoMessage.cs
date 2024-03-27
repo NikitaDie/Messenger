@@ -1,46 +1,43 @@
 ﻿using Protocol.Payloads.Core;
 
+
 namespace Protocol
 {
+    public class PayloadInfo
+    {
+        public Type Type { get; set; }
+        public MemoryStream Stream { get; set; }
+        
+    }
+    
     public class ProtoMessage
     {
-        private const char HEADER_SEPARATOR = ':';
-        private const string HEADER_PAYLOAD_COUNT = "cnt";
-        private const string HEADER_PAYLOAD_LEN = "len";
-        private const string HEADER_PAYLOAD_TYPE = "ptype";
+        public const char HEADER_SEPARATOR = ':';
+        public const string HEADER_PAYLOAD_LEN = "len";
+        public const string PAYLOAD_SEPARATOR = "--payload";
+        
         public string? Action { get; set; }
         public Dictionary<string, string> Headers { get; set; } = new Dictionary<string, string>();
-
-        public IPayload? Payload { get; set; }
-        public MemoryStream? PayloadStream { get; internal set; }
-
+        public List<PayloadInfo> PayloadsInfo { get; private set; } = new List<PayloadInfo>();
+        
         public int PayloadLength
         {
             get
             {
                 Headers.TryGetValue(HEADER_PAYLOAD_LEN, out string? value);
-
+        
                 if (string.IsNullOrEmpty(value))
                     return 0;
-
+        
                 return Convert.ToInt32(value);
             }
         }
-
-        public string? PayloadType
-        {
-            get
-            {
-                Headers.TryGetValue(HEADER_PAYLOAD_TYPE, out string? value);
-
-                return value;
-            }
-        }
-
+        
+        #region Headers
+        
         public void SetHeader(string key, string value)
-        {
-            Headers[key] = value;
-        }
+            => Headers[key] = value;
+        
 
         public void SetHeader(string header)
         {
@@ -48,43 +45,80 @@ namespace Protocol
 
             SetHeader(chunks[0], chunks[1]);
         }
+        
+        #endregion
 
-        public void SetPayload(IPayload payload)
+        #region Payloads
+        
+        public void CleanPayloadCollections()
         {
-            Payload = payload;
-
-            PayloadStream = payload.GetStream();
-
-            Headers[HEADER_PAYLOAD_LEN] = PayloadStream.Length.ToString();
-            //Headers[HEADER_PAYLOAD_TYPE] = Payload.GetPayloadType();
+            PayloadsInfo.Clear();
+        }
+        
+        public void AddPayload(IPayload payload)
+        {
+            PayloadsInfo.Add(new PayloadInfo 
+            { 
+                Type = payload.GetPayloadType(), 
+                Stream = payload.GetStream(),
+            });
+            Headers[HEADER_PAYLOAD_LEN] = PayloadsInfo.Sum(pi => (int)pi.Stream.Length).ToString();
         }
 
+        public void AddPayload(IEnumerable<IPayload> payloads)
+        {
+            PayloadsInfo.AddRange(payloads.Select(p => new PayloadInfo
+            {
+                Type = p.GetPayloadType(), 
+                Stream = p.GetStream(),
+            }));
+            Headers[HEADER_PAYLOAD_LEN] = PayloadsInfo.Sum(pi => (int)pi.Stream.Length).ToString();
+        }
+        
+        public void AddPayload(params IPayload[] payloads)
+        {
+            PayloadsInfo.AddRange(payloads.Select(p => new PayloadInfo
+            { 
+                Type = p.GetPayloadType(), 
+                Stream = p.GetStream()
+            }));
+            Headers[HEADER_PAYLOAD_LEN] = PayloadsInfo.Sum(pi => (int)pi.Stream.Length).ToString();
+        }
+        
+        #endregion
+        
+        
         public MemoryStream GetStream()
         {
             MemoryStream memStream = new MemoryStream();
             memStream.Write(new byte[4], 0, 4);
 
             StreamWriter writer = new StreamWriter(memStream);
-
+            
+            // 1. Write Action
             writer.WriteLine(Action);
+                
+            // 2. Write Headers
             foreach (KeyValuePair<string, string> h in Headers)
                 writer.WriteLine($"{h.Key}:{h.Value}");
             writer.WriteLine();
-            writer.Flush();
 
-            if (Payload is not null && PayloadStream is not null)
+            // 3. Write Payloads
+            foreach (var payloadInfo in PayloadsInfo)
             {
-                PayloadStream.Position = 0;
-                PayloadStream.CopyTo(memStream);
+                writer.WriteLine($"{PAYLOAD_SEPARATOR}:{payloadInfo.Type}");
+                writer.Flush();
+                payloadInfo.Stream.Position = 0;
+                payloadInfo.Stream.CopyTo(memStream);
+                writer.Write('\n');
             }
-
+            
+            // 4. Write the packet length without the first 4 bytes to represent the length itself
             memStream.Position = 0;
-
             byte[] sizeHeader = ConvertInt((int)memStream.Length - 4);
             memStream.Write(sizeHeader, 0, 4);
-
             memStream.Position = 0;
-
+            
             return memStream;
         }
 
@@ -96,5 +130,6 @@ namespace Protocol
 
             return intBytes;
         }
+        
     }
 }

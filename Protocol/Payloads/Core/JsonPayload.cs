@@ -4,13 +4,6 @@ namespace Protocol.Payloads.Core;
 
 public abstract class JsonPayload : IPayload
 {
-    public string GetPayloadType()
-    {
-        return "json";
-    }
-
-    protected abstract string GetJson();
-    
     public MemoryStream GetStream()
     {
         MemoryStream memStream = new MemoryStream();
@@ -22,4 +15,13 @@ public abstract class JsonPayload : IPayload
 
         return memStream;
     }
+
+    public abstract Type GetPayloadType();
+    public static IPayload GetObj(MemoryStream stream)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected abstract string GetJson();
+    
 }

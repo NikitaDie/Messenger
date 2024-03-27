@@ -1,6 +1,5 @@
 ﻿using System.Net;
 using System.Net.Sockets;
-using Protocol;
 using Protocol.Payloads;
 
 namespace ServerSide;
@@ -10,38 +9,54 @@ public class Server
     private readonly string _host;
     private readonly int _port;
 
-    private TcpListener listener;
+    private readonly TcpListener _listener;
     
-    private List<Client> clients = new List<Client>();
+    private readonly List<Client> _clients = new List<Client>();
 
     public Server(string host = "127.0.0.19", int port = 8080)
     {
         this._host = host;
         this._port = port;
 
-        listener = new TcpListener(IPAddress.Parse(host), port);
+        _listener = new TcpListener(IPAddress.Parse(host), port);
     }
     
     public async Task StartAsync()
     {
         try
         {
-            listener.Start();
+            _listener.Start();
             await Console.Out.WriteLineAsync($"Server started at {_host}:{_port}");
 
             while (true)
             {
-                TcpClient tcpClient = await listener.AcceptTcpClientAsync();
+                TcpClient tcpClient = await _listener.AcceptTcpClientAsync();
 
                 Client client = new Client(tcpClient);
 
-                clients.Add(client);
+                _clients.Add(client);
 
+                client.On("auth", response =>
+                {
+                    var payload = response[0];
+                    if (payload.Type != typeof(AuthMessage))
+                        throw new Exception(); //TODO: callback
+                    
+                });
+                
                 client.On("test", response =>
                 {
-                    MemoryStream payload = (MemoryStream)response;
-                    var ms = MessageDeserializer.Deserialize<TextMessage>(payload);
-                    Console.Out.WriteLine(ms.Content);
+                    foreach (var payload in response)
+                    {
+                        if (payload.Type == typeof(TextMessage))
+                        {
+                            var x = TextMessage.GetObj(payload.Stream);
+                            Console.WriteLine(x.Content);
+                        }
+
+                       
+                    }
+                    
                 });
                 // TODO: set events handlers ???
 

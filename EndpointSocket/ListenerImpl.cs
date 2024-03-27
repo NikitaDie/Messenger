@@ -1,13 +1,15 @@
-﻿namespace EndpointSocket;
+﻿using Protocol;
+
+namespace EndpointSocket;
 
 public class ListenerImpl : IListener, IComparable<IListener>
 {
     private static int _idCounter;
     private readonly int _id;
     private readonly Action? _fn1;
-    private readonly Action<object>? _fn;
+    private readonly Action<PayloadInfo[]>? _fn;
     
-    public ListenerImpl(Action<object> fn)
+    public ListenerImpl(Action<PayloadInfo[]> fn)
     {
         this._fn = fn;
         this._id = ListenerImpl._idCounter++;
@@ -27,7 +29,7 @@ public class ListenerImpl : IListener, IComparable<IListener>
     //         this._fn1();
     // }
 
-    public void Call(object arg)
+    public void Call(PayloadInfo[] arg)
     {
         if (this._fn != null)
             this._fn(arg);

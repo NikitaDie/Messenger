@@ -1,5 +1,5 @@
 ﻿using System.Collections.Immutable;
-using Protocol.Payloads.Core;
+using Protocol;
 
 namespace EndpointSocket;
 
@@ -20,7 +20,7 @@ public class Emitter
     //   return this;
     // }
 
-    public virtual Emitter Emit(string eventString, object arg)
+    public virtual Emitter Emit(string eventString, PayloadInfo[] arg)
     {
       if (_callbacks.ContainsKey(eventString))
       {
@@ -45,7 +45,7 @@ public class Emitter
       return this.On(eventString, (IListener) fn1);
     }
 
-    public Emitter On(string eventString, Action<Object> fn)
+    public Emitter On(string eventString, Action<PayloadInfo[]> fn)
     {
       ListenerImpl fn1 = new ListenerImpl(fn);
       return this.On(eventString, (IListener) fn1);

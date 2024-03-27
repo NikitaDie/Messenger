@@ -2,37 +2,41 @@
 
 namespace Protocol;
 
-public class ProtoMessageBuilder
+public static class ProtoMessageBuilder
 {
-    private NetworkStream _netStrteam;
-    private MemoryStream _memStream = null!;
-
-    public ProtoMessageBuilder(NetworkStream netStrteam)
+    public static ProtoMessage Receive(NetworkStream receivedStream)
     {
-        this._netStrteam = netStrteam;
-    }
+        ProtoMessage protoMessage  = new ProtoMessage();
+        int packetLength = ReadPacketLength(receivedStream);
 
-    public ProtoMessage Receive()
-    {
-        int readingSize = ConvertToInt(ReadBytes(4));
-
-        _memStream = new MemoryStream(readingSize);
-        _memStream.Write(ReadBytes(readingSize), 0, readingSize);
-        _memStream.Position = 0;
-
-        ProtoMessage pm  = new ProtoMessage();
+        MemoryStream memStream = new MemoryStream(packetLength);
+        memStream.Write(ReadBytesFromNetStream(receivedStream, packetLength), 0, packetLength);
+        memStream.Position = 0;
         
-        using StreamReader sr = new StreamReader(_memStream);
+        using StreamReader reader = new StreamReader(memStream);
+        ReadMetadata(protoMessage, reader);
+        ReadPayload(protoMessage, reader);
 
-        ExtractMetadata(pm, sr);
-        ExtrtactpayloadStream(pm);
-
-        _memStream.Dispose();
-
-        return pm;
+       
+        return protoMessage;
     }
 
-    private void ExtractMetadata(ProtoMessage pm, StreamReader sr)
+    #region Readers
+
+    // potential blocking call!
+    private static byte[] ReadBytesFromNetStream(NetworkStream netStream, int count)
+    {
+        byte[] bytes = new byte[count];
+        netStream.ReadExactly(bytes, 0, count);
+        return bytes;
+    }
+    
+    private static int ReadPacketLength(NetworkStream stream)
+    {
+        return BitConverter.ToInt32(ReadBytesFromNetStream(stream, 4).ReverseIfLittleEndian(), 0); //TODO: 4 as const
+    }
+    
+    private static void ReadMetadata(ProtoMessage pm, StreamReader sr)
     {
         sr.BaseStream.Position = 0;
 
@@ -43,33 +47,55 @@ public class ProtoMessageBuilder
             pm.SetHeader(headerLine);
     }
 
-    private void ExtrtactpayloadStream(ProtoMessage pm)
+    private static void ReadPayload(ProtoMessage protoMessage, StreamReader reader)
     {
-        int payloadLength = pm.PayloadLength;
+        List<MemoryStream> payloadStreams = new List<MemoryStream>();
+        Type? currentPayloadType = null;
+        MemoryStream? currentPayloadStream = null;
 
-        _memStream.Seek(-payloadLength, SeekOrigin.End);
-
-        MemoryStream payloadStream = new MemoryStream(payloadLength);
-        _memStream.CopyTo(payloadStream);
-        payloadStream.Position = 0;
-
-        pm.PayloadStream = payloadStream;
-    }
-
-    private byte[] ReadBytes(int count)
-    {
+        while (reader.ReadLine() is { } line)
+        {
+            // If the current line is the PAYLOAD_SEPARATOR, it means a new payload is starting.
+            if (line.Contains(ProtoMessage.PAYLOAD_SEPARATOR))
+            {
+                // 1. Add the current payload stream and Info
+                if (currentPayloadStream != null && currentPayloadType != null)
+                {
+                    payloadStreams.Add(currentPayloadStream);
+                    protoMessage.PayloadsInfo.Add(new PayloadInfo
+                    {
+                        Type = currentPayloadType, 
+                        Stream = currentPayloadStream,
+                    });
+                }
+                
+                // 2. Read the next line to get the type of the new payload 
+                currentPayloadType = Type.GetType(line.Split(ProtoMessage.HEADER_SEPARATOR, 
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)[1]);
+                currentPayloadStream = new MemoryStream();
+            }
+            else
+            {
+                //If the current line is not a separator, it means it contains payload data.
+                byte[] buffer = System.Text.Encoding.UTF8.GetBytes(line + "\n");
+                currentPayloadStream.Write(buffer, 0, buffer.Length);
+            }
+        }
         
-        byte[] bytes = new byte[count];
-        _netStrteam.ReadExactly(bytes, 0, count);
-
-        return bytes;
+        // Add the last payload stream
+        if (currentPayloadStream != null)
+        {
+            payloadStreams.Add(currentPayloadStream);
+            protoMessage.PayloadsInfo.Add(new PayloadInfo
+            {
+                Type = currentPayloadType, 
+                Stream = currentPayloadStream,
+            });
+        }
+        
+        // Update the payload length header
+        protoMessage.Headers[ProtoMessage.HEADER_PAYLOAD_LEN] = payloadStreams.Sum(ps => (int)ps.Length).ToString();
     }
 
-    private int ConvertToInt(byte[] bytes)
-    {
-        if (BitConverter.IsLittleEndian)
-            Array.Reverse(bytes);
-
-        return BitConverter.ToInt32(bytes, 0);
-    }
+    #endregion
 }

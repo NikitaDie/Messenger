@@ -4,17 +4,17 @@ using Protocol.Payloads.Core;
 
 namespace Protocol.Payloads;
 
-public class TextMessage : JsonPayload
+public class AuthMessage : JsonPayload
 {
-    // public string Author { get; set; } 
-    // public DateTime CreationDateTime { get; set; }
-    public string Content { get; set; }
+    public string Login { get; set; }
+    public string Password { get; set; }
 
-    public TextMessage(string content)
+    public AuthMessage(string login, string password)
     {
-        Content = content;
+        Login = login;
+        Password = password;
     }
-    
+
     public override Type GetPayloadType()
         => GetType();
     
@@ -23,7 +23,7 @@ public class TextMessage : JsonPayload
         return JsonSerializer.Serialize(this);
     }
     
-    public new static TextMessage GetObj(MemoryStream stream)
+    public new static AuthMessage GetObj(MemoryStream stream)
     {
         stream.Position = 0;
         string s;
@@ -32,6 +32,6 @@ public class TextMessage : JsonPayload
             s = reader.ReadToEnd();
         }
 
-        return JsonSerializer.Deserialize<TextMessage>(s);
+        return JsonSerializer.Deserialize<AuthMessage>(s);
     }
 }

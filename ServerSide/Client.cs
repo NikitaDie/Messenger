@@ -6,7 +6,7 @@ namespace ServerSide;
 
 public class Client : EventSocket
 {
-    private NetworkStream netStream = null!;
+    private NetworkStream? _netStream;
     
     public Client(TcpClient tcpClient) : base(tcpClient) { }
     
@@ -14,17 +14,15 @@ public class Client : EventSocket
     {
         try
         {
-            netStream = TcpClient.GetStream();
-
-            ProtoMessageBuilder builder = new ProtoMessageBuilder(netStream);
+            _netStream = TcpClient.GetStream();
             
             while (true)
             {
-                ProtoMessage protoMessage = builder.Receive();
-                base.Emit(protoMessage.Action, protoMessage.PayloadStream);
+                ProtoMessage protoMessage = ProtoMessageBuilder.Receive(_netStream);
+                this.Emit(protoMessage.Action!, protoMessage.PayloadsInfo.ToArray());
             }
         }
-        catch (Exception)
+        catch (Exception) //TODO: exception
         {
 
             throw;
