@@ -1,8 +1,8 @@
 ﻿using System.Text;
 using System.Text.Json;
-using Protocol.Payloads.Core;
+using ProtocolCore.Payloads.Core;
 
-namespace Protocol.Payloads;
+namespace MessengerPayloads;
 
 public class AuthMessage : JsonPayload
 {

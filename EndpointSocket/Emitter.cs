@@ -1,5 +1,5 @@
 ﻿using System.Collections.Immutable;
-using Protocol;
+using ProtocolCore;
 
 namespace EndpointSocket;
 

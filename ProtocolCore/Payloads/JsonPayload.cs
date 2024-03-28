@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
 
-namespace Protocol.Payloads.Core;
+namespace ProtocolCore.Payloads.Core;
 
 public abstract class JsonPayload : IPayload
 {

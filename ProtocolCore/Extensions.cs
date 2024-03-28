@@ -1,4 +1,4 @@
-﻿namespace Protocol;
+﻿namespace ProtocolCore;
 
 public static class Extensions
 {

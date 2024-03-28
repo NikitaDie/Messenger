@@ -1,4 +1,4 @@
-﻿namespace Protocol.Payloads.Core;
+﻿namespace ProtocolCore.Payloads.Core;
 
 public interface IPayload
 {

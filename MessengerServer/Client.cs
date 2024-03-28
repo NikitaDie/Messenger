@@ -1,8 +1,8 @@
 ﻿using System.Net.Sockets;
 using EndpointSocket;
-using Protocol;
+using ProtocolCore;
 
-namespace ServerSide;
+namespace MessengerServer;
 
 public class Client : EventSocket
 {

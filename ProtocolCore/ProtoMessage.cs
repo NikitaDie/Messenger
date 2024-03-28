@@ -1,7 +1,6 @@
-﻿using Protocol.Payloads.Core;
+﻿using ProtocolCore.Payloads.Core;
 
-
-namespace Protocol
+namespace ProtocolCore
 {
     public class PayloadInfo
     {

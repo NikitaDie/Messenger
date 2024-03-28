@@ -1,6 +1,6 @@
 ﻿using System.Net.Sockets;
-using Protocol;
-using Protocol.Payloads.Core;
+using ProtocolCore;
+using ProtocolCore.Payloads.Core;
 
 namespace EndpointSocket;
 

@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\EndpointSocket\EndpointSocket.csproj" />
+      <ProjectReference Include="..\MessengerPayloads\MessengerPayloads.csproj" />
+      <ProjectReference Include="..\ProtocolCore\ProtocolCore.csproj" />
+    </ItemGroup>
+
+</Project>

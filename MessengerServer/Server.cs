@@ -1,9 +1,9 @@
 ﻿using System.Net;
 using System.Net.Sockets;
-using Protocol.Payloads;
-using Protocol.Payloads.Core;
+using MessengerPayloads;
+using ProtocolCore.Payloads.Core;
 
-namespace ServerSide;
+namespace MessengerServer;
 
 public class Server
 {

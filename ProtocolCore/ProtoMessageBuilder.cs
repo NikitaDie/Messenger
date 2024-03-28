@@ -1,6 +1,6 @@
 ﻿using System.Net.Sockets;
 
-namespace Protocol;
+namespace ProtocolCore;
 
 public static class ProtoMessageBuilder
 {
