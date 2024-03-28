@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using Protocol.Payloads;
+using Protocol.Payloads.Core;
 
 namespace ServerSide;
 
@@ -50,7 +51,7 @@ public class Server
                     {
                         if (payload.Type == typeof(TextMessage))
                         {
-                            var x = TextMessage.GetObj(payload.Stream);
+                            var x = JsonPayload.GetObj<TextMessage>(payload.Stream);
                             Console.WriteLine(x.Content);
                         }
 
@@ -59,7 +60,7 @@ public class Server
                     
                 });
                 // TODO: set events handlers ???
-
+                //Warning: another Thread!
                 _ = Task.Run(() => client.Processing());
             }
         }

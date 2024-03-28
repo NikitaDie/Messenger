@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using System.Text.Json;
 
 namespace Protocol.Payloads.Core;
 
@@ -17,9 +18,18 @@ public abstract class JsonPayload : IPayload
     }
 
     public abstract Type GetPayloadType();
-    public static IPayload GetObj(MemoryStream stream)
+
+    public static T GetObj<T>(Stream stream)
+        where T : JsonPayload
     {
-        throw new NotImplementedException();
+        stream.Position = 0;
+        string s;
+        using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
+        { 
+            s = reader.ReadToEnd();
+        }
+
+        return JsonSerializer.Deserialize<T>(s);
     }
 
     protected abstract string GetJson();
