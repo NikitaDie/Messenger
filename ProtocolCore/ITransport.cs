@@ -10,6 +10,6 @@ public interface ITransport : IDisposable
     public event Action<Exception> OnError;
 
     void Initialize();
-    Task SendAsync(IMessage items);
+    Task SendAsync(ProtoMessage items);
     Task DisconnectAsync();
 }

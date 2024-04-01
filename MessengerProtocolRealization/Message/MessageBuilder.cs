@@ -1,41 +1,57 @@
-﻿using System.Net.Sockets;
+﻿using System.Diagnostics.CodeAnalysis;
+using ProtocolCore.Message;
 
-namespace ProtocolCore.Message;
-public static class ProtoMessageBuilder
+namespace MessengerProtocolRealization.Message;
+
+[SuppressMessage("ReSharper", "InconsistentNaming")] 
+public class MessageBuilder : IMessageBuilder
 {
-    public static ProtoMessage Receive(NetworkStream receivedStream)
+    public const char HEADER_SEPARATOR = ':';
+    public const string HEADER_PAYLOAD_LEN = "len";
+    public const string PAYLOAD_SEPARATOR = "--payload";
+    
+    public MemoryStream GetStream(ProtoMessage pm)
+    {
+        MemoryStream memStream = new MemoryStream();
+        using StreamWriter writer = new StreamWriter(memStream, leaveOpen:true);
+            
+        // 1. Write Id, Type, Event
+        writer.WriteLine(pm.Id);
+        writer.WriteLine(pm.Type);
+        writer.WriteLine(pm.Event);
+                
+        // 2. Write Headers
+        foreach (KeyValuePair<string, string> h in pm.Headers)
+            writer.WriteLine($"{h.Key}:{h.Value}");
+        writer.WriteLine();
+
+        // 3. Write Payloads
+        foreach (var payloadInfo in pm.PayloadsInfo)
+        {
+            writer.WriteLine($"{PAYLOAD_SEPARATOR}:{payloadInfo.Type}");
+            writer.Flush();
+            payloadInfo.Stream.Position = 0;
+            payloadInfo.Stream.CopyTo(memStream);
+            writer.Write('\n');
+        }
+        writer.Flush();
+        
+        return memStream;
+    }
+
+    public ProtoMessage GetProtoMessage(MemoryStream memStream)
     {
         ProtoMessage protoMessage  = new ProtoMessage();
-        int packetLength = ReadPacketLength(receivedStream);
-        
-        MemoryStream memStream = new MemoryStream(packetLength);
-        memStream.Write(ReadBytesFromNetStream(receivedStream, packetLength), 0, packetLength);
-        memStream.Position = 0;
         
         using StreamReader reader = new StreamReader(memStream);
-        
         ReadMetadata(protoMessage, reader);
         ReadPayload(protoMessage, reader);
 
-       
         return protoMessage;
     }
 
     #region Readers
 
-    // potential blocking call!
-    private static byte[] ReadBytesFromNetStream(NetworkStream netStream, int count)
-    {
-        byte[] bytes = new byte[count];
-        netStream.ReadExactly(bytes, 0, count);
-        return bytes;
-    }
-    
-    private static int ReadPacketLength(NetworkStream stream)
-    {
-        return BitConverter.ToInt32(ReadBytesFromNetStream(stream, 4).ReverseIfLittleEndian(), 0); //TODO: 4 as const
-    }
-    
     private static void ReadMetadata(ProtoMessage pm, StreamReader sr)
     {
         sr.BaseStream.Position = 0;
@@ -102,4 +118,5 @@ public static class ProtoMessageBuilder
     }
 
     #endregion
+    
 }

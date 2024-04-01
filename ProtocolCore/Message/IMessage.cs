@@ -9,7 +9,6 @@ public interface IMessage
     string Event { get; }
     int PayloadCount { get; }
     
-    MemoryStream GetStream();
     T GetValue<T>(int index) where T : IReversable;
     string? GetPayloadType(int index);
 }

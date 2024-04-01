@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using EventTransmitter;
+using MessengerProtocolRealization.Message;
 using MessengerProtocolRealization.Payloads;
 using MessengerProtocolRealization.Transport;
 
@@ -32,7 +33,10 @@ public class Server
             while (true)
             {
                 TcpClient tcpClient = await _listener.AcceptTcpClientAsync();
-                TcpTransport transportClient = new TcpTransport(tcpClient);
+                TcpTransport transportClient = new TcpTransport(tcpClient)
+                {
+                    MessageBuilder = new MessageBuilder(),
+                };
                 EventDrivenSocket client = new EventDrivenSocket(transportClient);
 
                 transportClient.Initialize();

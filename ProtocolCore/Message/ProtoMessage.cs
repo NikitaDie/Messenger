@@ -95,47 +95,7 @@ namespace ProtocolCore.Message
         #region IMessage
 
         public int PayloadCount => PayloadsInfo.Count;
-
-        public MemoryStream GetStream()
-        {
-            MemoryStream memStream = new MemoryStream();
-            memStream.Write(new byte[4], 0, 4);
-
-            using StreamWriter writer = new StreamWriter(memStream, leaveOpen:true);
-            
-            // 1. Write Id, Type, Event
-            writer.WriteLine(Id);
-            writer.WriteLine(Type);
-            writer.WriteLine(Event);
-                
-            // 2. Write Headers
-            foreach (KeyValuePair<string, string> h in Headers)
-                writer.WriteLine($"{h.Key}:{h.Value}");
-            writer.WriteLine();
-
-            // 3. Write Payloads
-            foreach (var payloadInfo in PayloadsInfo)
-            {
-                writer.WriteLine($"{PAYLOAD_SEPARATOR}:{payloadInfo.Type}");
-                writer.Flush();
-                payloadInfo.Stream.Position = 0;
-                payloadInfo.Stream.CopyTo(memStream);
-                writer.Write('\n');
-            }
-            writer.Flush();
-            
-            // 4. Write the packet length without the first 4 bytes to represent the length itself
-            memStream.Position = 0;
-            byte[] sizeHeader = ConvertInt((int)memStream.Length - 4);
-            memStream.Write(sizeHeader, 0, 4);
-            memStream.Position = 0;
-            
-            // using StreamReader reader = new StreamReader(memStream);
-            // string s = reader.ReadToEnd();
-            //
-            return memStream;
-        }
-
+        
         public T GetValue<T>(int index)
             where T : IReversable
         {
@@ -184,16 +144,6 @@ namespace ProtocolCore.Message
         }
         
         #endregion
-        
-
-        private byte[] ConvertInt(int val)
-        {
-            byte[] intBytes = BitConverter.GetBytes(val);
-            if (BitConverter.IsLittleEndian)
-                Array.Reverse(intBytes);
-
-            return intBytes;
-        }
         
     }
 }
