@@ -2,7 +2,7 @@
 using System.Text.Json;
 using ProtocolCore.Payloads.Core;
 
-namespace MessengerPayloads;
+namespace MessengerProtocolRealization.Payloads;
 
 public class AuthMessage : JsonPayload
 {
@@ -17,11 +17,6 @@ public class AuthMessage : JsonPayload
 
     public override Type GetPayloadType()
         => GetType();
-    
-    protected override string GetJson()
-    {
-        return JsonSerializer.Serialize(this);
-    }
     
     public new static AuthMessage GetObj(MemoryStream stream)
     {

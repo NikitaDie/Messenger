@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace ProtocolCore.Payloads.Core;
 
-public abstract class JsonPayload : IPayload
+public abstract class JsonPayload : IPayload, IReversable
 {
     public MemoryStream GetStream()
     {
@@ -20,7 +20,6 @@ public abstract class JsonPayload : IPayload
     public abstract Type GetPayloadType();
 
     public static T GetObj<T>(Stream stream)
-        where T : JsonPayload
     {
         stream.Position = 0;
         string s;
@@ -32,6 +31,9 @@ public abstract class JsonPayload : IPayload
         return JsonSerializer.Deserialize<T>(s);
     }
 
-    protected abstract string GetJson();
+    protected string GetJson()
+    {
+        return JsonSerializer.Serialize(this, this.GetType());
+    }
     
 }

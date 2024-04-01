@@ -1,19 +1,19 @@
 ﻿using System.Net.Sockets;
 
-namespace ProtocolCore;
-
+namespace ProtocolCore.Message;
 public static class ProtoMessageBuilder
 {
     public static ProtoMessage Receive(NetworkStream receivedStream)
     {
         ProtoMessage protoMessage  = new ProtoMessage();
         int packetLength = ReadPacketLength(receivedStream);
-
+        
         MemoryStream memStream = new MemoryStream(packetLength);
         memStream.Write(ReadBytesFromNetStream(receivedStream, packetLength), 0, packetLength);
         memStream.Position = 0;
         
         using StreamReader reader = new StreamReader(memStream);
+        
         ReadMetadata(protoMessage, reader);
         ReadPayload(protoMessage, reader);
 
@@ -40,9 +40,13 @@ public static class ProtoMessageBuilder
     {
         sr.BaseStream.Position = 0;
 
-        pm.Action = sr.ReadLine();
-
-        string headerLine;
+        pm.Id = Convert.ToInt32(sr.ReadLine());
+        // getting Message Type
+        Enum.TryParse(sr.ReadLine(), out MessageType type);
+        pm.Type = type;
+        pm.Event = sr.ReadLine();
+        
+        string? headerLine;
         while(! string.IsNullOrEmpty(headerLine = sr.ReadLine()))
             pm.SetHeader(headerLine);
     }
@@ -50,7 +54,7 @@ public static class ProtoMessageBuilder
     private static void ReadPayload(ProtoMessage protoMessage, StreamReader reader)
     {
         List<MemoryStream> payloadStreams = new List<MemoryStream>();
-        Type? currentPayloadType = null;
+        string? currentPayloadType = null;
         MemoryStream? currentPayloadStream = null;
 
         while (reader.ReadLine() is { } line)
@@ -70,20 +74,20 @@ public static class ProtoMessageBuilder
                 }
                 
                 // 2. Read the next line to get the type of the new payload 
-                currentPayloadType = Type.GetType(line.Split(ProtoMessage.HEADER_SEPARATOR, 
-                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)[1]);
+                currentPayloadType = line.Split(ProtoMessage.HEADER_SEPARATOR, 
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)[1];
                 currentPayloadStream = new MemoryStream();
             }
             else
             {
                 //If the current line is not a separator, it means it contains payload data.
                 byte[] buffer = System.Text.Encoding.UTF8.GetBytes(line + "\n");
-                currentPayloadStream.Write(buffer, 0, buffer.Length);
+                currentPayloadStream?.Write(buffer, 0, buffer.Length);
             }
         }
         
         // Add the last payload stream
-        if (currentPayloadStream != null)
+        if (currentPayloadStream != null && currentPayloadType != null)
         {
             payloadStreams.Add(currentPayloadStream);
             protoMessage.PayloadsInfo.Add(new PayloadInfo

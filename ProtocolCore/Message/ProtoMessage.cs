@@ -1,21 +1,25 @@
-﻿using ProtocolCore.Payloads.Core;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
+using ProtocolCore.Payloads.Core;
 
-namespace ProtocolCore
+namespace ProtocolCore.Message
 {
     public class PayloadInfo
     {
-        public Type Type { get; set; }
-        public MemoryStream Stream { get; set; }
-        
+        public required string Type { get; init; }
+        public required MemoryStream Stream { get; init; }
     }
     
-    public class ProtoMessage
+    [SuppressMessage("ReSharper", "InconsistentNaming")] 
+    public class ProtoMessage : IMessage 
     {
         public const char HEADER_SEPARATOR = ':';
         public const string HEADER_PAYLOAD_LEN = "len";
         public const string PAYLOAD_SEPARATOR = "--payload";
         
-        public string? Action { get; set; }
+        public string Event { get; set; }
+        public MessageType Type { get; set; }
+        public int Id { get; set; }
         public Dictionary<string, string> Headers { get; set; } = new Dictionary<string, string>();
         public List<PayloadInfo> PayloadsInfo { get; private set; } = new List<PayloadInfo>();
         
@@ -41,8 +45,10 @@ namespace ProtocolCore
         public void SetHeader(string header)
         {
             string[] chunks = header.Split(HEADER_SEPARATOR, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-            SetHeader(chunks[0], chunks[1]);
+            
+            if (chunks.Length >= 2)
+                SetHeader(chunks[0], chunks[1]);
+            
         }
         
         #endregion
@@ -58,7 +64,7 @@ namespace ProtocolCore
         {
             PayloadsInfo.Add(new PayloadInfo 
             { 
-                Type = payload.GetPayloadType(), 
+                Type = payload.GetPayloadType().ToString(), 
                 Stream = payload.GetStream(),
             });
             Headers[HEADER_PAYLOAD_LEN] = PayloadsInfo.Sum(pi => (int)pi.Stream.Length).ToString();
@@ -68,7 +74,7 @@ namespace ProtocolCore
         {
             PayloadsInfo.AddRange(payloads.Select(p => new PayloadInfo
             {
-                Type = p.GetPayloadType(), 
+                Type = p.GetPayloadType().ToString(), 
                 Stream = p.GetStream(),
             }));
             Headers[HEADER_PAYLOAD_LEN] = PayloadsInfo.Sum(pi => (int)pi.Stream.Length).ToString();
@@ -78,24 +84,29 @@ namespace ProtocolCore
         {
             PayloadsInfo.AddRange(payloads.Select(p => new PayloadInfo
             { 
-                Type = p.GetPayloadType(), 
+                Type = p.GetPayloadType().ToString(), 
                 Stream = p.GetStream()
             }));
             Headers[HEADER_PAYLOAD_LEN] = PayloadsInfo.Sum(pi => (int)pi.Stream.Length).ToString();
         }
         
         #endregion
-        
-        
+
+        #region IMessage
+
+        public int PayloadCount => PayloadsInfo.Count;
+
         public MemoryStream GetStream()
         {
             MemoryStream memStream = new MemoryStream();
             memStream.Write(new byte[4], 0, 4);
 
-            StreamWriter writer = new StreamWriter(memStream);
+            using StreamWriter writer = new StreamWriter(memStream, leaveOpen:true);
             
-            // 1. Write Action
-            writer.WriteLine(Action);
+            // 1. Write Id, Type, Event
+            writer.WriteLine(Id);
+            writer.WriteLine(Type);
+            writer.WriteLine(Event);
                 
             // 2. Write Headers
             foreach (KeyValuePair<string, string> h in Headers)
@@ -111,6 +122,7 @@ namespace ProtocolCore
                 payloadInfo.Stream.CopyTo(memStream);
                 writer.Write('\n');
             }
+            writer.Flush();
             
             // 4. Write the packet length without the first 4 bytes to represent the length itself
             memStream.Position = 0;
@@ -118,8 +130,61 @@ namespace ProtocolCore
             memStream.Write(sizeHeader, 0, 4);
             memStream.Position = 0;
             
+            // using StreamReader reader = new StreamReader(memStream);
+            // string s = reader.ReadToEnd();
+            //
             return memStream;
         }
+
+        public T GetValue<T>(int index)
+            where T : IReversable
+        {
+            if (index >= PayloadCount)
+                throw new Exception("Index "); //TODO: 
+
+            try
+            {
+                // Get the type of T
+                Type currentType = typeof(T);
+                
+                // Loop through the inheritance hierarchy
+                while (currentType != null)
+                {
+                    // Look for the GetObj method in the current type
+                    MethodInfo? method = currentType.GetMethod("GetObj", BindingFlags.Public | BindingFlags.Static);
+
+                    if (method != null)
+                    {
+                        MethodInfo genericMethod = method.MakeGenericMethod(typeof(T));
+                        MemoryStream pStream = PayloadsInfo[index].Stream;
+                        return (T)genericMethod.Invoke(null, new object[] { pStream });
+                    }
+
+                    // Move to the base type for next iteration
+                    currentType = currentType.BaseType;
+                }
+
+                // If not found in any ancestor, throw an exception
+                throw new Exception($"Type '{typeof(T)}' or its ancestors do not have a public static 'GetObj' method");
+            
+            }
+            catch (Exception ex)
+            {
+                //TODO:
+                throw new Exception();
+            }
+        }
+
+        public string? GetPayloadType(int index)
+        {
+            if (index >= PayloadCount)
+                throw new Exception("Index "); //TODO: 
+            
+            return PayloadsInfo[index].Type;
+        }
+        
+        #endregion
+        
 
         private byte[] ConvertInt(int val)
         {

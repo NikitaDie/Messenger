@@ -1,7 +1,8 @@
 ﻿using System.Net;
 using System.Net.Sockets;
-using MessengerPayloads;
-using ProtocolCore.Payloads.Core;
+using EventTransmitter;
+using MessengerProtocolRealization.Payloads;
+using MessengerProtocolRealization.Transport;
 
 namespace MessengerServer;
 
@@ -9,10 +10,9 @@ public class Server
 {
     private readonly string _host;
     private readonly int _port;
-
     private readonly TcpListener _listener;
-    
-    private readonly List<Client> _clients = new List<Client>();
+    private readonly List<EventDrivenSocket> _clients = new List<EventDrivenSocket>();
+    private readonly EventRouter _eventRouter = new EventRouter();
 
     public Server(string host = "127.0.0.19", int port = 8080)
     {
@@ -32,36 +32,42 @@ public class Server
             while (true)
             {
                 TcpClient tcpClient = await _listener.AcceptTcpClientAsync();
+                TcpTransport transportClient = new TcpTransport(tcpClient);
+                EventDrivenSocket client = new EventDrivenSocket(transportClient);
 
-                Client client = new Client(tcpClient);
-
+                transportClient.Initialize();
+                
+                
                 _clients.Add(client);
 
-                client.On("auth", response =>
-                {
-                    var payload = response[0];
-                    if (payload.Type != typeof(AuthMessage))
-                        throw new Exception(); //TODO: callback
-                    
-                });
+                // client.On("auth", response =>
+                // {
+                //     var payload = response[0];
+                //     if (payload.Type != typeof(AuthMessage).ToString());
+                //         throw new Exception(); //TODO: callback
+                //     
+                // });
                 
-                client.On("test", response =>
+                client.On("test", request =>
                 {
-                    foreach (var payload in response)
+                    for (int i = 0; i < request.PayloadCount; ++i)
                     {
-                        if (payload.Type == typeof(TextMessage))
+                        if (request.GetPayloadType(i) == typeof(TextMessage).ToString())
                         {
-                            var x = JsonPayload.GetObj<TextMessage>(payload.Stream);
+                            var x = request.GetValue<TextMessage>(i);
                             Console.WriteLine(x.Content);
                         }
-
-                       
+                        
                     }
-                    
                 });
-                // TODO: set events handlers ???
+                
+                client.On("akaTest", request =>
+                {
+                    _ = request.CallbackAsync(new TextMessage("Hi, back!"));
+                });
+                
                 //Warning: another Thread!
-                _ = Task.Run(() => client.Processing());
+                HandleClientEvents(client);
             }
         }
         catch (Exception ex)
@@ -69,5 +75,13 @@ public class Server
             await Console.Out.WriteLineAsync($"ERROR: {ex.Message}");
 
         }
+    }
+    
+    private void HandleClientEvents(EventDrivenSocket client)
+    {
+        client.OnRawEventAction += (eventName, response) =>
+        {
+            _eventRouter.RouteEvent(eventName, response);
+        };
     }
 }

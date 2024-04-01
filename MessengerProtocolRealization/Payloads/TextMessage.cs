@@ -1,7 +1,6 @@
-﻿using System.Text.Json;
-using ProtocolCore.Payloads.Core;
+﻿using ProtocolCore.Payloads.Core;
 
-namespace MessengerPayloads;
+namespace MessengerProtocolRealization.Payloads;
 
 public class TextMessage : JsonPayload
 {
@@ -16,9 +15,4 @@ public class TextMessage : JsonPayload
     
     public override Type GetPayloadType()
         => GetType();
-    
-    protected override string GetJson()
-    {
-        return JsonSerializer.Serialize(this);
-    }
 }
